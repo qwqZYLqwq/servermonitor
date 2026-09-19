@@ -79,8 +79,13 @@ fun HomeScreen(vm: MainViewModel) {
     var showAddDialog by remember { mutableStateOf(false) }
 
     val activeId = vm.activeServer?.id
+    // 首次刷新
     LaunchedEffect(activeId) {
         vm.refreshStatus()
+    }
+    // 自动刷新循环：出错后暂停，手动刷新成功后恢复
+    LaunchedEffect(activeId, vm.autoRefreshPaused) {
+        if (vm.autoRefreshPaused) return@LaunchedEffect
         while (true) {
             val intervalMs = vm.activeServer?.refreshSeconds?.coerceIn(2, 300)?.times(1000L) ?: 10000L
             delay(intervalMs)

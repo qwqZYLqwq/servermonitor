@@ -38,6 +38,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var errorMessage by mutableStateOf<String?>(null)
         private set
+    var autoRefreshPaused by mutableStateOf(false)
+        private set
 
     // 主页当前监控的服务器（勾选「显示在主页」的第一台）
     val activeServer: ServerConfig? get() = config.servers.firstOrNull { it.showOnHome }
@@ -140,7 +142,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             isRefreshing = true
-            errorMessage = null
             try {
                 val output = withContext(Dispatchers.IO) {
                     ssh.execute(server, StatusParser.STATUS_COMMAND)
@@ -150,8 +151,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // 值未变化不提交 state，避免每 10s 无谓重组打断滑动
                 if (parsedStatus != status) status = parsedStatus
                 if (parsedPorts != listeningPorts) listeningPorts = parsedPorts
+                // 刷新成功才清除错误，避免弹窗被自动重连关掉
+                errorMessage = null
+                autoRefreshPaused = false
             } catch (e: Exception) {
                 errorMessage = "连接失败：${e.message ?: e.javaClass.simpleName}"
+                autoRefreshPaused = true
             } finally {
                 isRefreshing = false
             }
